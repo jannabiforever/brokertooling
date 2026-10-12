@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
+  "plugins": ["typescript", "import", "unicorn", "promise", "vitest", "effecttsgo"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "ignorePatterns": ["dist", "build", "coverage"],
+  "rules": {
+    "vitest/no-standalone-expect": [
+      "error",
+      { "additionalTestBlockFunctions": ["it.effect", "it.live", "it.scoped", "it.flakyTest"] }
+    ],
+    "eslint/no-underscore-dangle": "off",
+    "effecttsgo/unstable-api-usage": "off",
+    "import/no-cycle": "error"
+  }
+}

@@ -1,0 +1,17 @@
+packages:
+  - apps/*
+  - packages/*
+
+# single source of truth for versions shared by more than one package
+catalog:
+  effect: ^4.0.3
+  "@effect/platform-node": ^4.0.3
+  "@effect/vitest": ^4.0.3
+
+# pnpm 12 blocks releases younger than its default minimumReleaseAge; effect 4.0.3 was
+# brand new when this template was cut. Delete once it has aged out.
+minimumReleaseAgeExclude:
+  - effect@4.0.3
+
+onlyBuiltDependencies:
+  - esbuild

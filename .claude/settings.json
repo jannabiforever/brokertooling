@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm format *)",
+      "Bash(pnpm test *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(ls *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [{ "hooks": [{ "type": "command", "command": ".claude/hooks/stop-lint-check.sh" }] }]
+  }
+}

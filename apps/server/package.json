@@ -1,0 +1,15 @@
+{
+  "name": "@template/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.ts",
+    "dev": "node --watch src/index.ts"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@template/api": "workspace:*",
+    "effect": "catalog:"
+  }
+}
