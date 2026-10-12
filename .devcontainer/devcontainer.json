@@ -6,9 +6,8 @@
       "multiUser": false
     }
   },
-  // the flake is the single toolchain definition; direnv loads it in every shell
-  // ponytail: nix.conf written here, not via the feature's extraNixConfig: Zed's devcontainer runner leaves spaced option values unquoted in devcontainer-features.env (sh: "=: not found")
-  "postCreateCommand": "mkdir -p ~/.config/nix && echo 'experimental-features = nix-command flakes' > ~/.config/nix/nix.conf && nix profile install nixpkgs#direnv && echo 'eval \"$(direnv hook bash)\"' >> ~/.bashrc && direnv allow && nix develop --command pnpm install --frozen-lockfile",
+  // must stay a single word, see the comment in the script
+  "postCreateCommand": ".devcontainer/post-create.sh",
   "customizations": {
     "vscode": {
       "extensions": [
