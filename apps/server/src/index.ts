@@ -8,13 +8,14 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
 import * as HttpRouter from "effect/http/HttpRouter"
 import * as Layer from "effect/Layer"
 
+import { ProblemLayer } from "./problem.ts"
 import { SystemLayer } from "./system.ts"
 
 // handler layers go in as an inline tuple literal: a named array widens to a
 // union and loses the per-group types
 const Server = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
   HttpRouter.serve,
-  Layer.provide([SystemLayer]),
+  Layer.provide([SystemLayer, ProblemLayer]),
   Layer.provide(
     NodeHttpServer.layerConfig(createServer, {
       port: Config.Port("PORT").pipe(Config.withDefault(3000)),
