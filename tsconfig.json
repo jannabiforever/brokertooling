@@ -20,6 +20,9 @@
     "plugins": [
       {
         "name": "@effect/language-service",
+        // auto-imports as `import * as Effect from "effect/Effect"` rather than `import { Effect } from "effect"`;
+        // exact package names only (no globs), and @effect/vitest stays named: `it` is not a namespace
+        "namespaceImportPackages": ["effect", "@effect/platform-node"],
         "diagnosticSeverity": {
           // effect 4 still marks the whole HttpApi/HttpRouter surface unstable
           "unstableApiUsage": "off",

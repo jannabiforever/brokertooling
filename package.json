@@ -24,6 +24,7 @@
   "devDependencies": {
     "@effect/tsgo": "0.48.0",
     "@effect/vitest": "catalog:",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@types/node": "^26.6.4",
     "oxlint": "1.86.0",
     "oxlint-tsgolint": "7.0.2003",

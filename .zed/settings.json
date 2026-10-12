@@ -3,7 +3,11 @@
     "TypeScript": {
       "format_on_save": "on",
       "tab_size": 2,
-      "formatter": "prettier"
+      "formatter": "prettier",
+      "prettier": {
+        "allowed": true,
+        "plugins": ["@ianvs/prettier-plugin-sort-imports"]
+      }
     }
   },
   "lsp": {

@@ -1,9 +1,13 @@
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
-import { Config, Layer } from "effect"
-import { HttpRouter } from "effect/http"
-import { HttpApiBuilder } from "effect/http-api"
 import { createServer } from "node:http"
+
+import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import { Api } from "@template/api"
+import * as Config from "effect/Config"
+import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
+import * as HttpRouter from "effect/http/HttpRouter"
+import * as Layer from "effect/Layer"
+
 import { SystemLayer } from "./system.ts"
 
 // handler layers go in as an inline tuple literal: a named array widens to a
