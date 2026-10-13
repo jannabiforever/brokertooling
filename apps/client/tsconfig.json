@@ -8,6 +8,6 @@
     "noUnusedParameters": true,
     // @personalos/api sources use .ts-extension imports (nodenext style)
     "allowImportingTsExtensions": true,
-    "skipLibCheck": true,
-  },
+    "skipLibCheck": true
+  }
 }
