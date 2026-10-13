@@ -1,0 +1,35 @@
+name: brokertooling
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: docker/server.Dockerfile
+    # each app owns its env file; the server's lives next to it
+    # (cp apps/server/.env.example apps/server/.env) and is also what
+    # `pnpm dev` loads locally via --env-file-if-exists
+    env_file:
+      - path: ../apps/server/.env
+        required: false
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  client:
+    build:
+      context: ..
+      dockerfile: docker/client.Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      server:
+        condition: service_healthy

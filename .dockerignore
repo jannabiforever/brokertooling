@@ -1,0 +1,16 @@
+.git
+node_modules
+**/node_modules
+**/.svelte-kit
+**/build
+**/dist
+coverage
+tmp
+.direnv
+.devcontainer
+.github
+.claude
+.zed
+*.log
+.env
+.env.*

@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+FROM node:24-slim
+
+RUN npm install -g pnpm@12.9.0
+WORKDIR /repo
+
+# manifests first so the dependency layer caches across source changes;
+# pnpm needs every workspace manifest to validate the frozen lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/server/package.json apps/server/
+COPY apps/client/package.json apps/client/
+COPY packages/api/package.json packages/api/
+# --ignore-scripts: the root prepare hook (effect-tsgo patch) only matters for lint/typecheck
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @template/server...
+
+# no build step: the server runs straight from TS source (Node 24 type stripping),
+# and @template/api is consumed from src/ via the workspace symlink
+COPY packages/api packages/api
+COPY apps/server apps/server
+
+ENV NODE_ENV=production
+ENV PORT=3000
+EXPOSE 3000
+
+WORKDIR /repo/apps/server
+CMD ["node", "src/index.ts"]

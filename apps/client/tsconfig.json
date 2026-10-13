@@ -8,6 +8,6 @@
     "noUnusedParameters": true,
     // @template/api sources use .ts-extension imports (nodenext style)
     "allowImportingTsExtensions": true,
-    "skipLibCheck": true,
-  },
+    "skipLibCheck": true
+  }
 }

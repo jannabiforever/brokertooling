@@ -10,6 +10,7 @@ apps/          deployables
   client/      @template/client   SvelteKit SPA, adapter-static + ssr off (own tsconfig, svelte-check; dev proxy → server)
 packages/      libraries, consumed from src/ (no build step)
   api/         @template/api      contract: schemas, errors, HttpApiGroups
+docker/        Dockerfiles + compose.yaml (client nginx proxies API routes → server)
 ```
 
 Dependency direction: `server → api`. Nothing in `packages/` imports from `apps/`.
@@ -24,6 +25,8 @@ pnpm typecheck     # tsc (tsgo)
 pnpm test          # vitest + @effect/vitest
 pnpm dev           # server with --watch
 pnpm dev:client    # vite dev server, proxies API routes to :3000
+docker compose -f docker/compose.yaml up --build   # both apps; client on :8080
+# server env (local + docker): cp apps/server/.env.example apps/server/.env
 ```
 
 ## Conventions
