@@ -8,6 +8,7 @@
     "dev": "node --watch src/index.ts"
   },
   "dependencies": {
+    "@effect/ai-anthropic": "catalog:",
     "@effect/platform-node": "catalog:",
     "@template/api": "workspace:*",
     "effect": "catalog:"

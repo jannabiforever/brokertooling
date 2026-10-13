@@ -1,11 +1,25 @@
-import { Api } from "@template/api"
+import * as AnthropicClient from "@effect/ai-anthropic/AnthropicClient"
+import * as Api from "@template/api"
 import * as Effect from "effect/Effect"
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
+import * as Multipart from "effect/http/Multipart"
 
-export const ProblemLayer = HttpApiBuilder.group(Api, "problem", (handlers) =>
+const UploadProblemHwpx = Effect.fnUntraced(function* ({
+  payload,
+}: {
+  payload: { file: Multipart.PersistedFile }
+}) {
+  return yield* Effect.die(`Not implemented: ${payload.file.path}`)
+})
+
+const GenerateSolutionText = Effect.fnUntraced(function* ({ params }: { params: { id: string } }) {
+  yield* AnthropicClient.AnthropicClient
+  return yield* Effect.die(`Not implemented: ${params.id}`)
+})
+
+export const Live = HttpApiBuilder.group(Api.Api, "problem", (handlers) =>
   handlers.handleAll({
-    // ponytail: placeholder so the api compiles; the multipart layer already
-    // persists the upload to ctx.payload.file.path, parsing the hwpx goes here
-    "upload-problem-hwpx": () => Effect.die("upload-problem-hwpx: not implemented"),
+    "upload-problem-hwpx": UploadProblemHwpx,
+    "generate-solution-text": GenerateSolutionText,
   }),
 )

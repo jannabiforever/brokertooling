@@ -18,7 +18,10 @@ export class ProblemApi extends HttpApiGroup.make("problem")
       payload: HttpApiSchema.asMultipart()(Schema.Struct({ file: Multipart.SingleFileSchema })),
       success: Problem.IdSchema,
     }),
+    HttpApiEndpoint.get("generate-solution-text", "/:id/generate-solution-text", {
+      params: { id: Problem.IdSchema },
+      success: Schema.String,
+    }),
   ) {}
 
-// new domain = packages/api/src/<d>.ts + apps/server/src/<d>.ts + barrel line + Layer.provide entry
 export class Api extends HttpApi.make("api").add(SystemApi).add(ProblemApi) {}

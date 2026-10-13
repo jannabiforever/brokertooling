@@ -1,0 +1,13 @@
+{
+  "extends": "./.svelte-kit/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // @template/api sources use .ts-extension imports (nodenext style)
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+  },
+}
