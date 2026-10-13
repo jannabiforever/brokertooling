@@ -14,7 +14,7 @@
 </script>
 
 <main>
-  <h1>Broker Tooling</h1>
+  <h1>PersonalOS</h1>
   <p>SvelteKit client for <code>@personalos/server</code>.</p>
   <button onclick={checkHealth}>Check server health</button>
   <p>
