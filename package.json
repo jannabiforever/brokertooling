@@ -3,11 +3,12 @@
   "scripts": {
     "start": "pnpm --filter @template/server start",
     "dev": "pnpm --filter @template/server dev",
+    "dev:client": "pnpm --filter @template/client dev",
     "lint": "oxlint --type-aware",
     "lint:fix": "oxlint --type-aware --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc",
+    "typecheck": "tsc && pnpm --filter @template/client typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "effect-tsgo patch --typescript --oxlint"

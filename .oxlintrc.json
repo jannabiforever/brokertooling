@@ -6,13 +6,15 @@
     "suspicious": "error",
     "perf": "warn"
   },
-  "ignorePatterns": ["dist", "build", "coverage"],
+  "ignorePatterns": ["dist", "build", "coverage", ".svelte-kit"],
   "rules": {
     "vitest/no-standalone-expect": [
       "error",
       { "additionalTestBlockFunctions": ["it.effect", "it.live", "it.scoped", "it.flakyTest"] }
     ],
     "eslint/no-underscore-dangle": "off",
+    // side-effect CSS imports are the standard Vite pattern in the Svelte client
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
     "effecttsgo/unstable-api-usage": "off",
     "import/no-cycle": "error"
   }

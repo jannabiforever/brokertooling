@@ -7,6 +7,7 @@ pnpm workspace, TypeScript 7 (tsgo), Effect 4.
 ```
 apps/          deployables
   server/      @template/server   Effect HttpApi server for @template/api
+  client/      @template/client   SvelteKit SPA, adapter-static + ssr off (own tsconfig, svelte-check; dev proxy → server)
 packages/      libraries, consumed from src/ (no build step)
   api/         @template/api      contract: schemas, errors, HttpApiGroups
 ```
@@ -22,6 +23,7 @@ pnpm format        # prettier
 pnpm typecheck     # tsc (tsgo)
 pnpm test          # vitest + @effect/vitest
 pnpm dev           # server with --watch
+pnpm dev:client    # vite dev server, proxies API routes to :3000
 ```
 
 ## Conventions
