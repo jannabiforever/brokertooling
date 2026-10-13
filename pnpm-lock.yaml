@@ -211,7 +211,7 @@ importers:
 
   apps/client:
     dependencies:
-      '@template/api':
+      '@personalos/api':
         specifier: workspace:*
         version: link:../../packages/api
       effect:
@@ -248,7 +248,7 @@ importers:
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.3(effect@4.0.3)(redis@6.3.0)
-      '@template/api':
+      '@personalos/api':
         specifier: workspace:*
         version: link:../../packages/api
       effect:

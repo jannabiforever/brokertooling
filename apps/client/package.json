@@ -1,5 +1,5 @@
 {
-  "name": "@template/client",
+  "name": "@personalos/client",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@template/api": "workspace:*",
+    "@personalos/api": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

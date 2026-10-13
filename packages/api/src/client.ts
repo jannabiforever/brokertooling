@@ -10,7 +10,7 @@ import * as Api from "./api.ts"
  * Requires an `HttpClient` implementation (e.g. `FetchHttpClient.layer`).
  */
 export class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<typeof Api.Api>>()(
-  "@template/api/client/ApiClient",
+  "@personalos/api/client/ApiClient",
 ) {
   /**
    * Builds the client layer.

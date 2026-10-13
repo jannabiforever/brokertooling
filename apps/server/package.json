@@ -1,5 +1,5 @@
 {
-  "name": "@template/server",
+  "name": "@personalos/server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   "dependencies": {
     "@effect/ai-anthropic": "catalog:",
     "@effect/platform-node": "catalog:",
-    "@template/api": "workspace:*",
+    "@personalos/api": "workspace:*",
     "effect": "catalog:"
   }
 }

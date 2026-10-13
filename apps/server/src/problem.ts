@@ -1,5 +1,5 @@
 import * as AnthropicClient from "@effect/ai-anthropic/AnthropicClient"
-import * as Api from "@template/api"
+import * as Api from "@personalos/api"
 import * as Effect from "effect/Effect"
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder"
 import * as Multipart from "effect/http/Multipart"

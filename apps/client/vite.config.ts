@@ -4,7 +4,7 @@ import { defineConfig } from "vite"
 export default defineConfig({
   plugins: [sveltekit()],
   server: {
-    // forward API calls to @template/server during development
+    // forward API calls to @personalos/server during development
     proxy: {
       "/health": "http://localhost:3000",
       "/problem": "http://localhost:3000",

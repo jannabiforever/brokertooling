@@ -11,10 +11,10 @@ COPY apps/server/package.json apps/server/
 COPY apps/client/package.json apps/client/
 COPY packages/api/package.json packages/api/
 # --ignore-scripts: the root prepare hook (effect-tsgo patch) only matters for lint/typecheck
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @template/server...
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @personalos/server...
 
 # no build step: the server runs straight from TS source (Node 24 type stripping),
-# and @template/api is consumed from src/ via the workspace symlink
+# and @personalos/api is consumed from src/ via the workspace symlink
 COPY packages/api packages/api
 COPY apps/server apps/server
 

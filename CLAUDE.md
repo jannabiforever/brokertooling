@@ -6,10 +6,10 @@ pnpm workspace, TypeScript 7 (tsgo), Effect 4.
 
 ```
 apps/          deployables
-  server/      @template/server   Effect HttpApi server for @template/api
-  client/      @template/client   SvelteKit SPA, adapter-static + ssr off (own tsconfig, svelte-check; dev proxy → server)
+  server/      @personalos/server   Effect HttpApi server for @personalos/api
+  client/      @personalos/client   SvelteKit SPA, adapter-static + ssr off (own tsconfig, svelte-check; dev proxy → server)
 packages/      libraries, consumed from src/ (no build step)
-  api/         @template/api      contract: schemas, errors, HttpApiGroups
+  api/         @personalos/api      contract: schemas, errors, HttpApiGroups
 docker/        Dockerfiles + compose.yaml (client nginx proxies API routes → server)
 ```
 

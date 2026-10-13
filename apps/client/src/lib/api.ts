@@ -1,4 +1,4 @@
-import { ApiClient } from "@template/api"
+import { ApiClient } from "@personalos/api"
 import type * as Effect from "effect/Effect"
 import * as FetchHttpClient from "effect/http/FetchHttpClient"
 import * as Layer from "effect/Layer"
