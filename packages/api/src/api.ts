@@ -1,5 +1,6 @@
 import * as HttpApi from "effect/http-api/HttpApi"
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint"
+import * as HttpApiError from "effect/http-api/HttpApiError"
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup"
 import * as HttpApiSchema from "effect/http-api/HttpApiSchema"
 import * as Multipart from "effect/http/Multipart"
@@ -21,6 +22,20 @@ export class ProblemApi extends HttpApiGroup.make("problem")
     HttpApiEndpoint.get("generate-solution-text", "/:id/generate-solution-text", {
       params: { id: Problem.IdSchema },
       success: Schema.String,
+    }),
+    /**
+     * Photo of a problem (jpeg/png/webp/gif) -> .hwpx with the text as paragraphs
+     * and the math as 한글 equation objects.
+     * 422: unsupported image type · 500: the vision model call failed.
+     */
+    HttpApiEndpoint.post("image-to-hwpx", "/image-to-hwpx", {
+      payload: HttpApiSchema.asMultipart({ maxFileSize: "20 MiB" })(
+        Schema.Struct({ image: Multipart.SingleFileSchema }),
+      ),
+      success: Schema.Uint8Array.pipe(
+        HttpApiSchema.asUint8Array({ contentType: "application/hwp+zip" }),
+      ),
+      error: Schema.Union([HttpApiError.UnprocessableEntity, HttpApiError.InternalServerError]),
     }),
   ) {}
 
