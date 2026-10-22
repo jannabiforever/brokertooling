@@ -11,6 +11,7 @@
     "@effect/ai-anthropic": "catalog:",
     "@effect/platform-node": "catalog:",
     "@personalos/api": "workspace:*",
+    "@resvg/resvg-js": "2.6.2",
     "@rhwp/core": "^0.8.7",
     "effect": "catalog:"
   }

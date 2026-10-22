@@ -73,19 +73,26 @@
 
   const busy = $derived(stage === "uploading" || stage === "generating")
 
-  // --- 문제 사진 → 원고 → hwpx ---
+  // --- 문제 사진 → 원고 → 그림 → hwpx ---
 
   let image = $state<File | null>(null)
   let transcribing = $state(false)
   let manuscript = $state("")
   let warnings = $state<ReadonlyArray<Problem.Warning>>([])
+  let figures = $state<ReadonlyArray<Problem.Figure>>([])
+  let drawing = $state(false)
   let building = $state(false)
   let convertError = $state("")
+
+  const noteCount = $derived(
+    manuscript.split("\n").filter((line) => /^\[그림(?: \d+)?: .*\]$/.test(line.trim())).length,
+  )
 
   const transcribe = async () => {
     if (!image) return
     transcribing = true
     convertError = ""
+    figures = []
     try {
       const formData = new FormData()
       formData.append("image", image)
@@ -99,12 +106,31 @@
     }
   }
 
+  const draw = async () => {
+    if (!image) return
+    drawing = true
+    convertError = ""
+    try {
+      const formData = new FormData()
+      formData.append("image", image)
+      formData.append("text", manuscript)
+      figures = await api((client) => client.problem.generate_figures({ payload: formData }))
+    } catch (cause) {
+      convertError = describeError(cause)
+    } finally {
+      drawing = false
+    }
+  }
+
+  // an <img> never runs scripts, unlike {@html}; the server rejects them anyway
+  const svgUrl = (svg: string) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)
+
   const build = async () => {
     building = true
     convertError = ""
     try {
       const bytes = await api((client) =>
-        client.problem.manuscript_to_hwpx({ payload: { text: manuscript } }),
+        client.problem.manuscript_to_hwpx({ payload: { text: manuscript, figures } }),
       )
       const url = URL.createObjectURL(new Blob([bytes.slice()], { type: "application/hwp+zip" }))
       const a = document.createElement("a")
@@ -194,8 +220,8 @@
   <section>
     <h2>문제 사진 → hwpx</h2>
     <p>
-      문제 사진을 원고(글 + <code>$수식$</code>)로 옮긴 뒤 형식 검사 결과를 보고 고쳐서 hwpx로
-      내려받습니다.
+      문제 사진을 원고(글 + <code>$수식$</code>)로 옮기고, <code>[그림: …]</code> 자리의 그림을
+      그린 뒤, 형식 검사 결과를 보고 고쳐서 hwpx로 내려받습니다.
     </p>
     <input
       type="file"
@@ -210,6 +236,19 @@
       <h3>원고</h3>
       <textarea bind:value={manuscript} rows="16" spellcheck="false"></textarea>
       {@render warningList(warnings)}
+
+      {#if noteCount > 0}
+        <button onclick={draw} disabled={drawing}>
+          {drawing ? "그림 그리는 중… (수십 초 걸릴 수 있음)" : `그림 그리기 (${noteCount})`}
+        </button>
+      {/if}
+      {#each figures as figure (figure.note)}
+        <figure>
+          <img src={svgUrl(figure.svg)} alt={figure.note} />
+          <figcaption><code>{figure.note}</code></figcaption>
+        </figure>
+      {/each}
+
       <button onclick={build} disabled={building}>
         {building ? "변환 중…" : "hwpx로 변환"}
       </button>
@@ -286,5 +325,21 @@
   .warnings {
     font-size: 0.875rem;
     padding-left: 1.25rem;
+  }
+
+  figure {
+    margin: 1rem 0;
+  }
+
+  figure img {
+    max-width: 24rem;
+    width: 100%;
+    background: white;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-radius: 0.5rem;
+  }
+
+  figcaption {
+    font-size: 0.875rem;
   }
 </style>

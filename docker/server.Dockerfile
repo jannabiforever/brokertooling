@@ -2,6 +2,10 @@
 FROM node:24-slim
 
 RUN npm install -g pnpm@12.9.0
+# Korean fallback font for figure rasterization (Latin serif is bundled in apps/server/fonts)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends fonts-nanum \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /repo
 
 # manifests first so the dependency layer caches across source changes;

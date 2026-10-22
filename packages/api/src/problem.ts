@@ -76,3 +76,18 @@ export type Manuscript = (typeof ManuscriptSchema)["Type"]
 export class HwpxBuildError extends Schema.TaggedError<HwpxBuildError>()("HwpxBuildError", {
   message: Schema.String,
 }) {}
+
+/**
+ * A figure for one `[그림: …]` line of a manuscript: the line itself (the key
+ * the builder matches on) and SVG markup.
+ */
+export const FigureSchema = Schema.Struct({ note: Schema.String, svg: Schema.String })
+export type Figure = (typeof FigureSchema)["Type"]
+
+/**
+ * The figure agent did not return usable SVG.
+ */
+export class FigureGenerationError extends Schema.TaggedError<FigureGenerationError>()(
+  "FigureGenerationError",
+  { message: Schema.String },
+) {}

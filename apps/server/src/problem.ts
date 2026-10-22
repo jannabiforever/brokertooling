@@ -11,6 +11,7 @@ import * as Multipart from "effect/http/Multipart"
 import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
 
+import * as Figure from "./figure.ts"
 import { Hwpx } from "./hwpx.ts"
 import * as Manuscript from "./manuscript.ts"
 
@@ -59,6 +60,14 @@ const Model = AnthropicLanguageModel.layer({ model: "claude-fable-5" })
 // what the Anthropic vision API accepts; HEIC straight from an iPhone is not among them
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
 
+/** Rejects what the vision model cannot read; the client's `accept` is only a hint. */
+const checkImage = (image: Multipart.PersistedFile) =>
+  IMAGE_TYPES.has(image.contentType)
+    ? Effect.void
+    : new Api.Problem.UnsupportedImageError({
+        message: `지원하지 않는 이미지 형식입니다: ${image.contentType} (jpeg/png/webp/gif)`,
+      })
+
 /** The lint/format stage every model-written manuscript goes through. */
 const finish = (text: string): Api.Problem.Manuscript => {
   const formatted = Manuscript.format(text)
@@ -75,6 +84,7 @@ export const Live = HttpApiBuilder.group(Api.Api, "problem", (handlers) =>
     const model = yield* LanguageModel.LanguageModel
     const solutionPrompt = yield* loadPrompt("solution.md")
     const transcribePrompt = yield* loadPrompt("transcribe.md")
+    const figurePrompt = yield* loadPrompt("figure.md")
 
     return handlers.handleAll({
       upload_problem_hwpx: Effect.fnUntraced(function* ({
@@ -116,11 +126,7 @@ export const Live = HttpApiBuilder.group(Api.Api, "problem", (handlers) =>
       }: {
         payload: { image: Multipart.PersistedFile }
       }) {
-        if (!IMAGE_TYPES.has(image.contentType)) {
-          return yield* new Api.Problem.UnsupportedImageError({
-            message: `지원하지 않는 이미지 형식입니다: ${image.contentType} (jpeg/png/webp/gif)`,
-          })
-        }
+        yield* checkImage(image)
         const bytes = yield* fs.readFile(image.path).pipe(Effect.orDie)
         const response = yield* model
           .generateText({
@@ -142,8 +148,53 @@ export const Live = HttpApiBuilder.group(Api.Api, "problem", (handlers) =>
           )
         return finish(response.text)
       }),
-      manuscript_to_hwpx: ({ payload }: { payload: { text: string } }) =>
-        hwpx.fromManuscript(Manuscript.format(payload.text)),
+      // One model call per `[그림: ...]` note, with the photo as the reference.
+      generate_figures: Effect.fnUntraced(function* ({
+        payload: { image, text },
+      }: {
+        payload: { image: Multipart.PersistedFile; text: string }
+      }) {
+        yield* checkImage(image)
+        const notes = Figure.notes(text)
+        if (notes.length === 0) return []
+        const bytes = yield* fs.readFile(image.path).pipe(Effect.orDie)
+        return yield* Effect.forEach(
+          notes,
+          Effect.fnUntraced(function* (note: string) {
+            const response = yield* model
+              .generateText({
+                prompt: [
+                  { role: "system", content: figurePrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "file", mediaType: image.contentType, data: bytes },
+                      { type: "text", text: `문제 원고:\n${text}\n\n그릴 그림: ${note}` },
+                    ],
+                  },
+                ],
+              })
+              .pipe(
+                Effect.mapError(
+                  (error) => new Api.Problem.FigureGenerationError({ message: error.message }),
+                ),
+              )
+            const svg = Figure.svgFromResponse(response.text)
+            if (svg === undefined) {
+              return yield* new Api.Problem.FigureGenerationError({
+                message: `SVG가 아닌 응답을 받았습니다: ${note}`,
+              })
+            }
+            return { note, svg }
+          }),
+          { concurrency: 3 },
+        )
+      }),
+      manuscript_to_hwpx: ({
+        payload,
+      }: {
+        payload: { text: string; figures?: ReadonlyArray<Api.Problem.Figure> | undefined }
+      }) => hwpx.fromManuscript(Manuscript.format(payload.text), payload.figures ?? []),
     })
   }),
 ).pipe(Layer.provide([Hwpx.layer, Store.layer, Model]))

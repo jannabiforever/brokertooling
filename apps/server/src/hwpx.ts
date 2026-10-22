@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url"
 
 import * as Api from "@personalos/api"
+import { Resvg } from "@resvg/resvg-js"
 import * as rhwp from "@rhwp/core"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
@@ -16,7 +17,7 @@ declare global {
 
 /**
  * `getStructure` returns JSON whose `preamble` field holds the paragraphs
- * before the first recognized structure node -- for a problem file, that is the
+ * before the first recognized structure node — for a problem file, that is the
  * problem text itself.
  */
 const StructureSchema = Schema.fromJsonString(
@@ -25,26 +26,67 @@ const StructureSchema = Schema.fromJsonString(
 
 const decodeStructure = Schema.decodeUnknownEffect(StructureSchema)
 
-/** rhwp edit calls return JSON; `{"ok":false,...}` is a soft failure. */
+/** rhwp edit calls return JSON; `{"ok":false,…}` is a soft failure. */
 const check = (result: string): void => {
   if (result.startsWith('{"ok":false')) throw new Error(result)
 }
 
+const FIGURE_WIDTH = Math.round((60 / 25.4) * 7200) // 60 mm in HWPUNIT (1/7200 in)
+const FIGURE_RENDER_WIDTH = 1200 // px at 60 mm ≈ 500 dpi
+
+// Times-like serif with a real italic, so variables look the way 평가원 figures
+// do on every host; system fonts only serve as the fallback for Korean labels.
+const FONT_FILES = ["LiberationSerif-Regular.ttf", "LiberationSerif-Italic.ttf"].map((name) =>
+  fileURLToPath(new URL(`../fonts/${name}`, import.meta.url)),
+)
+
 /**
- * Manuscript -> document: one line = one paragraph, `$...$` = equation object
- * (script in 한글 수식 편집기 syntax). Same convention as the 해설 원고 files.
+ * SVG → PNG. Hancom shows a broken-image icon for SVG picture data (tested
+ * with 한글 12.30), so figures go in as bitmaps; the SVG stays with the client.
  */
-const buildDocument = (manuscript: string): Uint8Array => {
+const rasterize = (svg: string) => {
+  const image = new Resvg(svg, {
+    fitTo: { mode: "width", value: FIGURE_RENDER_WIDTH },
+    font: { fontFiles: FONT_FILES, serifFamily: "Liberation Serif", loadSystemFonts: true },
+  }).render()
+  return { png: image.asPng(), width: image.width, height: image.height }
+}
+
+/**
+ * Manuscript → document: one line = one paragraph, `$…$` = equation object
+ * (script in 한글 수식 편집기 syntax). A line that matches a figure's note
+ * becomes that figure, inline. Same convention as the 해설 원고 files.
+ */
+const buildDocument = (manuscript: string, figures: ReadonlyMap<string, string>): Uint8Array => {
   const doc = rhwp.HwpDocument.createEmpty()
   try {
     // Hancom's bundled blank template: carries the section/column definitions
     // that `createEmpty` leaves out and Hancom insists on.
     doc.createBlankDocument()
-    const lines = manuscript.split("\n")
-    lines.forEach((line, para) => {
+    manuscript.split("\n").forEach((line, para) => {
       if (para > 0) check(doc.insertParagraph(0, para))
+      const svg = figures.get(line.trim())
+      if (svg !== undefined) {
+        const { png, width, height } = rasterize(svg)
+        const options = {
+          sectionIdx: 0,
+          paraIdx: para,
+          charOffset: 0,
+          width: FIGURE_WIDTH,
+          height: Math.round((FIGURE_WIDTH * height) / width),
+          naturalWidthPx: width,
+          naturalHeightPx: height,
+          extension: "png",
+          description: line.trim(),
+        }
+        check(doc.insertPictureEx(JSON.stringify(options), png))
+        // inserted pictures float at the paper's corner; anchor them in the text
+        const anchor = { treatAsChar: true, textWrap: "TopAndBottom" }
+        check(doc.setPictureProperties(0, para, 0, JSON.stringify(anchor)))
+        return
+      }
       // Equations anchor to a text offset, and text inserted at that offset lands
-      // in front of them -- so write the whole text first, then place equations.
+      // in front of them — so write the whole text first, then place equations.
       const equations: Array<readonly [offset: number, script: string]> = []
       let text = ""
       line.split("$").forEach((piece, i) => {
@@ -62,9 +104,10 @@ const buildDocument = (manuscript: string): Uint8Array => {
   }
 }
 
-const fromManuscript = (manuscript: string) =>
+const fromManuscript = (manuscript: string, figures: ReadonlyArray<Api.Problem.Figure> = []) =>
   Effect.try({
-    try: () => buildDocument(manuscript),
+    try: () =>
+      buildDocument(manuscript, new Map(figures.map((figure) => [figure.note.trim(), figure.svg]))),
     catch: (cause) =>
       new Api.Problem.HwpxBuildError({
         message: `hwpx 생성에 실패했습니다: ${String(cause)}`,
@@ -74,7 +117,7 @@ const fromManuscript = (manuscript: string) =>
 /**
  * Wraps the `@rhwp/core` WASM document engine. The layer initializes the WASM
  * module once per process; rhwp is browser-first, so a crude `measureTextWidth`
- * stub is installed -- layout fidelity is irrelevant for text extraction, and
+ * stub is installed — layout fidelity is irrelevant for text extraction, and
  * Hancom re-lays out the files we write.
  */
 export class Hwpx extends Context.Service<
@@ -84,9 +127,13 @@ export class Hwpx extends Context.Service<
     readonly extractPreamble: (
       bytes: Uint8Array,
     ) => Effect.Effect<string, Api.Problem.InvalidHwpxError>
-    /** Builds a .hwpx from a manuscript: one line = one paragraph, `$...$` = equation. */
+    /**
+     * Builds a .hwpx from a manuscript: one line = one paragraph, `$…$` =
+     * equation, a `[그림: …]` line = its figure when one is supplied.
+     */
     readonly fromManuscript: (
       manuscript: string,
+      figures?: ReadonlyArray<Api.Problem.Figure>,
     ) => Effect.Effect<Uint8Array, Api.Problem.HwpxBuildError>
   }
 >()("@personalos/server/hwpx") {

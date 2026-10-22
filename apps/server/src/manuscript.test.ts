@@ -96,14 +96,38 @@ describe("Manuscript", () => {
     }),
   )
 
-  it.effect("format fixes only the unambiguous spellings", () =>
+  it.effect("format fixes every rule that has one correct form and is idempotent", () =>
+    Effect.gen(function* () {
+      yield* Effect.void
+      const fixed = Manuscript.format(bad)
+      // only what needs the author's judgment is left (the 정답: line is gone, so 17 → 16)
+      expect(Manuscript.lint(fixed).map((w) => [w.line, w.rule, w.text])).toEqual([
+        [7, "수식 밖 영문·숫자", "와 x=1"],
+        [16, "$ 짝이 안 맞음", "$x$$"],
+      ])
+      expect(Manuscript.format(fixed)).toBe(fixed)
+      const lines = fixed.split("\n")
+      expect(lines[0]).toBe("함수 $f LEFT( x RIGHT)`$의 값")
+      expect(lines[4]).toBe("${1} over {2}`$의")
+      expect(lines[7]).toBe("    $2`sin`x$")
+      expect(lines[12]).toBe("$A$   $RARROW$   $B$")
+      expect(lines[14]).toBe("$LEFT( 1`,``2 RIGHT)$")
+      expect(lines[18]).toBe("$n이 홀수$ <<일러")
+      expect(lines[19]).toBe("제$`n`$항과 $a$")
+    }),
+  )
+
+  it.effect("format normalizes fences, line endings and spellings", () =>
     Effect.gen(function* () {
       yield* Effect.void
       expect(Manuscript.format("```text\n$x<-1$\n```\n")).toBe("$x{<}-1$")
       expect(Manuscript.format("$a<=b$ $overline {rm AB}$\r\n\tc")).toBe(
         "$a leq b$ $bar {rm AB}$\n    c",
       )
-      expect(Manuscript.format("$a neq b$ x<=y")).toBe("$a != b$ x<=y") // text is left alone
+      expect(Manuscript.format("$a neq b$ x<=y")).toBe("$a != b$ x<=y") // prose is left alone
+      expect(Manuscript.format("$\\lim_{x \\to \\infty} \\frac{1}{x^2}$")).toBe(
+        "$lim _{x`->`inf} {1} over {x ^{2}}$",
+      )
     }),
   )
 })

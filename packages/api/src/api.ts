@@ -41,9 +41,29 @@ export class ProblemApi extends HttpApiGroup.make("problem")
         Problem.TranscriptionError.pipe(HttpApiSchema.status("BadGateway")),
       ],
     }),
-    /** Manuscript text -> .hwpx with one paragraph per line and 한글 equation objects. */
+    /**
+     * SVG for every `[그림: …]` line of a manuscript, drawn from the photo and
+     * the problem text. Empty when the manuscript has no figure notes.
+     */
+    HttpApiEndpoint.post("generate_figures", "/generate-figures", {
+      payload: HttpApiSchema.asMultipart({ maxFileSize: "20 MiB" })(
+        Schema.Struct({ image: Multipart.SingleFileSchema, text: Schema.String }),
+      ),
+      success: Schema.Array(Problem.FigureSchema),
+      error: [
+        Problem.UnsupportedImageError.pipe(HttpApiSchema.status("UnprocessableEntity")),
+        Problem.FigureGenerationError.pipe(HttpApiSchema.status("BadGateway")),
+      ],
+    }),
+    /**
+     * Manuscript text → .hwpx with one paragraph per line and 한글 equation
+     * objects; a `[그림: …]` line becomes its figure when one is supplied.
+     */
     HttpApiEndpoint.post("manuscript_to_hwpx", "/manuscript-to-hwpx", {
-      payload: Schema.Struct({ text: Schema.String }),
+      payload: Schema.Struct({
+        text: Schema.String,
+        figures: Schema.optional(Schema.Array(Problem.FigureSchema)),
+      }),
       success: Schema.Uint8Array.pipe(
         HttpApiSchema.asUint8Array({ contentType: "application/hwp+zip" }),
       ),

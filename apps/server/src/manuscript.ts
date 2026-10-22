@@ -1,38 +1,11 @@
 import type * as Api from "@personalos/api"
 
 // Manuscript = the text form shared by 해설 원고 and problem transcripts:
-// one line = one paragraph, `$...$` = equation in 한글 수식 편집기 syntax.
-// `lint` is a port of the check.py that ships with the haeseol-wongo skill;
-// keep rule names identical so the warnings read the same in both places.
-
-/**
- * Normalizes a manuscript before it is linted or built: code fences, CRLF,
- * tabs, and the few equation spellings that have exactly one correct form.
- * Everything else (trailing backticks, LEFT/RIGHT...) depends on context and is
- * only reported by {@link lint}.
- */
-export const format = (text: string): string =>
-  text
-    .replace(/\r\n?/g, "\n")
-    .replace(/^```[^\n]*\n|\n```\s*$/g, "") // models sometimes fence the output
-    .replace(/\t/g, "    ")
-    .split("\n")
-    .map((line) =>
-      line
-        .split("$")
-        .map((piece, i) => (i % 2 === 1 ? fixEquation(piece) : piece))
-        .join("$"),
-    )
-    .join("\n")
-    .trimEnd()
-
-const fixEquation = (eq: string): string =>
-  eq
-    .replace(/overline/g, "bar")
-    .replace(/\bneq\b/g, "!=")
-    .replace(/<=/g, " leq ")
-    .replace(/>=/g, " geq ")
-    .replace(/<\s*-/g, "{<}-") // `<-` typesets as an arrow
+// one line = one paragraph, `$…$` = equation in 한글 수식 편집기 syntax.
+// `format` rewrites everything that has exactly one correct form under the
+// 원고 rules; `lint` (a port of the haeseol-wongo skill's check.py, same rule
+// names) reports what is left: unbalanced `$`/braces/LEFT·RIGHT and prose
+// that should have been an equation, which only the author can settle.
 
 const COMMANDS = new Set([
   "times",
@@ -49,8 +22,148 @@ const COMMANDS = new Set([
   "~",
 ])
 
+const ARROW = /\b(RARROW|LARROW|LRARROW)\b/
+const FIGURE_LINE = /^\[(그림|표)( \d+)?:/
+
 const count = (s: string, re: RegExp): number => Array.from(s.matchAll(re)).length
 const isAlnum = (c: string | undefined): boolean => c !== undefined && /[\p{L}\p{N}]/u.test(c)
+
+/** LaTeX habits → 한글 수식 spellings; a backslash that survives is left for lint. */
+const fromLatex = (eq: string): string =>
+  eq
+    .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, "{$1} over {$2}")
+    .replace(/\\sqrt\s*\[([^\]]*)\]\s*\{([^{}]*)\}/g, "root {$1} of {$2}")
+    .replace(/\\sqrt\s*\{([^{}]*)\}/g, "sqrt {$1}")
+    .replace(/\\left\s*([(["|])/g, "LEFT$1 ")
+    .replace(/\\right\s*([)\]|])/g, " RIGHT$1")
+    .replace(/\\infty\b/g, "inf")
+    .replace(/\\to\b/g, "->")
+    .replace(/\\ne(?:q)?\b/g, "!=")
+    .replace(/\\le\b/g, "leq")
+    .replace(/\\ge\b/g, "geq")
+    .replace(/\\([A-Za-z]+)(?=\S)/g, "$1 ") // \lim_{…} → lim _{…}
+    .replace(/\\([A-Za-z]+)/g, "$1") // alpha, pi, times, sin, int, therefore…
+
+/** Coefficient tokens that need a backtick before sin·cos·tan·log·ln. */
+const needsBacktick = (t: string): boolean =>
+  (!COMMANDS.has(t) && isAlnum(t.at(-1))) ||
+  ((t.endsWith("}") || t.endsWith(")")) && !t.startsWith("_{") && !t.startsWith("^{"))
+
+/**
+ * One equation body, given the character after its closing `$` and the text
+ * before its opening `$` (the 수식 끝 / 제n항 rules depend on them).
+ */
+const fixEquation = (raw: string, next: string, prev: string): string => {
+  let eq = fromLatex(raw)
+    .replace(/overline/g, "bar")
+    .replace(/\bneq\b/g, "!=")
+    .replace(/<=/g, " leq ")
+    .replace(/>=/g, " geq ")
+    .replace(/<\s*-/g, "{<}-") // `<-` typesets as an arrow
+    // commands glued to their argument
+    .replace(/(?<![A-Za-z])(n|\d)pi\b/g, "$1 pi")
+    .replace(/\b(sin|cos|tan)x\b/g, "$1`x")
+    .replace(/([a-z])(sin|cos|tan)\b/g, "$1`$2")
+    // bare sub/superscripts
+    .replace(/([_^])\s*([A-Za-z0-9])(?![\w{])/g, " $1{$2}")
+    // every bracket is LEFT( … RIGHT)
+    .replace(/(?<!\bLEFT\s*)([([])/gi, " LEFT$1 ")
+    .replace(/(?<!\bRIGHT\s*)([)\]])/gi, " RIGHT$1")
+    // fractions: both sides braced
+    .replace(/([^\s{}]+)\s+over\s+([^\s{}]+)/g, "{$1} over {$2}")
+    .replace(/\}\s*over\s+([^\s{}]+)/g, "} over {$1}")
+    .replace(/([^\s{}]+)\s+over\s*\{/g, "{$1} over {")
+    // sin·cos·tan and their angle; coefficient before a function name
+    .replace(
+      /\b(sin|cos|tan)(\s*\^\s*\{[^}]*\})?\s*(?=[^\s`})])/g,
+      (_, fn: string, power?: string) => `${fn}${power ?? ""}\``,
+    )
+    .replace(/([0-9)}])(sin|cos|tan|log|ln)\b/g, "$1`$2")
+    .replace(/(\S+)\s+(sin|cos|tan|log|ln)\b/g, (m, t: string, fn: string) =>
+      needsBacktick(t) ? `${t}\`${fn}` : m,
+    )
+    // log base, limit arrow
+    .replace(/log\s*_\s*\{\s*`?([^}`]*?)`?\s*\}/g, "log _{`$1`}")
+    .replace(/\s*`*->`*\s*/g, "`->`")
+  if (!/^\s*(therefore|because)\s*$/.test(eq)) {
+    eq = eq.replace(/\b(therefore|because)(?!\s*``)\s*`?/g, "$1``")
+  }
+  if (!eq.includes("rm")) {
+    eq = eq
+      .replace(/(?<![`'])'/g, "`'")
+      .replace(/(?<![A-Za-z])([CEPQRS])(?!\s*[`_^])(?![A-Za-z])/g, "$1`")
+  }
+  // coordinates and intervals: one backtick before the comma, two after
+  eq = eq.replace(
+    /(\s*)`*,`*(\s*)/g,
+    (_, before: string, after: string) => `${before && " "}\`,\`\`${after && " "}`,
+  )
+  if (eq.includes("cases")) eq = eq.replace(/(?<!&\s*)#(?!\s*&\s*#)/g, "# & #")
+  eq = eq
+    .replace(/(\brm\s+[A-Za-z]+\s*\}?[\s`]*)(?=LEFT\b)/g, "$1it ")
+    .replace(/(\brm\s+[A-Za-z]+\s*\}?[\s`]*_\s*\{)(?!\s*it\b)/g, "$1it ")
+    .replace(/ {2,}/g, " ")
+  // 수식 끝: a backtick when a letter or punctuation follows, none before a space
+  const body = eq.trimEnd()
+  const attached = next !== "" && !/\s/.test(next)
+  if (attached) {
+    if (!body.endsWith("`")) eq = body + "`"
+    else if (/(?<![A-Za-z])[CEPQRS]`$/.test(body) && !eq.includes("rm")) eq = body + "`"
+  } else if (!body.trimStart().startsWith("therefore")) {
+    eq = body.replace(/`+$/, "")
+  }
+  if (prev.endsWith("제") && (next === "항" || next === "사") && !eq.trimStart().startsWith("`")) {
+    eq = "`" + eq.trimStart()
+  }
+  return eq
+}
+
+/** One manuscript line; `undefined` drops it. */
+const fixLine = (raw: string): string | undefined => {
+  const line = raw.replace(/\t/g, "    ").trimEnd()
+  if (FIGURE_LINE.test(line)) return line // notes for the illustrator, not manuscript
+  if (/^(코드|정답)\s*:/.test(line)) return undefined // header lines the 원고 forbids
+  const s = line.replace(
+    /([①-⑳㉠-㉻]|\((?:가|나|다|라|마|바|사)\))(?!\[반띄쓰\])(?=[^\s,.)\]])/g,
+    "$1[반띄쓰]",
+  )
+  if (count(s, /\$/g) % 2 === 1) return s // lint will say so
+  // `$A RARROW B$` → `$A$   $RARROW$   $B$`
+  const split = s.split("$")
+  for (let k = 1; k < split.length; k += 2) {
+    const eq = split[k] ?? ""
+    if (ARROW.test(eq) && !/^\s*(RARROW|LARROW|LRARROW)\s*$/.test(eq) && !eq.includes("eqalign")) {
+      split[k] = eq.replace(
+        /\s*\b(RARROW|LARROW|LRARROW)\b\s*/g,
+        (_, arrow: string) => `$   $${arrow}$   $`,
+      )
+    }
+  }
+  const parts = split.join("$").split("$")
+  for (let k = 1; k < parts.length; k += 2) {
+    parts[k] = fixEquation(parts[k] ?? "", (parts[k + 1] ?? "").charAt(0), parts[k - 1] ?? "")
+  }
+  let fixed = parts
+    .join("$")
+    .replace(/\$ *(\$(?:RARROW|LARROW|LRARROW)\$) *\$/g, (_, arrow: string) => `$   ${arrow}   $`)
+  const equations = parts.filter((_, k) => k % 2 === 1).join("")
+  if (/[가-힣]/.test(equations) && !fixed.includes("<<일러")) fixed += " <<일러"
+  return fixed
+}
+
+/**
+ * Normalizes a manuscript: code fences, CRLF, tabs, trailing spaces, and the
+ * 수식 문법·띄어쓰기 rules that have exactly one correct form. Idempotent.
+ */
+export const format = (text: string): string =>
+  text
+    .replace(/\r\n?/g, "\n")
+    .replace(/^```[^\n]*\n|\n```\s*$/g, "") // models sometimes fence the output
+    .split("\n")
+    .map(fixLine)
+    .filter((line): line is string => line !== undefined)
+    .join("\n")
+    .trimEnd()
 
 const checkEquation = (eq: string, next: string, prev: string, warn: (rule: string) => void) => {
   const body = eq.trim()
@@ -99,11 +212,7 @@ const checkEquation = (eq: string, next: string, prev: string, warn: (rule: stri
     }
   }
   for (const m of eq.matchAll(/(\S+)\s+(?:sin|cos|tan|log|ln)\b/g)) {
-    const t = m[1] ?? ""
-    const bare = !COMMANDS.has(t) && isAlnum(t.at(-1))
-    const closed =
-      (t.endsWith("}") || t.endsWith(")")) && !t.startsWith("_{") && !t.startsWith("^{")
-    if (bare || closed) {
+    if (needsBacktick(m[1] ?? "")) {
       warn("sin·cos·tan·log 앞 계수 뒤 백틱")
       break
     }
@@ -138,7 +247,7 @@ const checkEquation = (eq: string, next: string, prev: string, warn: (rule: stri
     }
   }
   if (
-    /\b(?:RARROW|LARROW|LRARROW)\b/.test(eq) &&
+    ARROW.test(eq) &&
     !["RARROW", "LARROW", "LRARROW"].includes(body) &&
     !eq.includes("eqalign")
   ) {
@@ -151,7 +260,7 @@ const checkEquation = (eq: string, next: string, prev: string, warn: (rule: stri
 
 /**
  * Reports manuscript lines that break the 원고 형식 / 수식 띄어쓰기 rules.
- * Warnings only: every rule here depends on context the author must judge.
+ * Run after {@link format}; what remains needs the author's judgment.
  */
 export const lint = (text: string): Array<Api.Problem.Warning> => {
   const warnings: Array<Api.Problem.Warning> = []
@@ -159,7 +268,7 @@ export const lint = (text: string): Array<Api.Problem.Warning> => {
     const line = index + 1
     const warn = (rule: string, snippet: string = original.trim()) =>
       warnings.push({ line, rule, text: snippet })
-    if (/^\[(그림|표)( \d+)?:/.test(original)) return // notes for the illustrator, not manuscript
+    if (FIGURE_LINE.test(original)) return
     if (original.includes("\t")) warn("탭 문자 대신 공백 4개")
     if (/([①-⑳㉠-㉻]|\((?:가|나|다|라|마|바|사)\))(?!\[반띄쓰\])(?=[^\s,.)\]])/.test(original)) {
       warn("원문자·(가) 뒤에 글자가 붙으면 [반띄쓰]")

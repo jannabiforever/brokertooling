@@ -52,4 +52,17 @@ layer(Hwpx.layer.pipe(Layer.provide(NodeServices.layer)))("Hwpx", (it) => {
       expect(paragraphs[0]).toContain("<hp:secPr ") // Hancom needs the section definition
     }),
   )
+
+  it.effect("swaps a [그림: …] line for its figure, rasterized and anchored in the text", () =>
+    Effect.gen(function* () {
+      const hwpx = yield* Hwpx
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><rect width="400" height="200" fill="white"/><circle cx="200" cy="100" r="50"/></svg>'
+      const bytes = yield* hwpx.fromManuscript("앞\n[그림: 원]\n뒤", [{ note: "[그림: 원]", svg }])
+      const paragraphs = zipEntry(bytes, "Contents/section0.xml").split("<hp:p ").slice(1)
+      expect(paragraphs.map(inline)).toEqual([["앞"], [], ["뒤"]])
+      expect(paragraphs[1]).toMatch(/<hp:pic .*treatAsChar="1"/)
+      expect(zipEntry(bytes, "BinData/image1.png").slice(1, 4)).toBe("PNG")
+    }),
+  )
 })
