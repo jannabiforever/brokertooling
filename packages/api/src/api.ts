@@ -1,6 +1,5 @@
 import * as HttpApi from "effect/http-api/HttpApi"
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint"
-import * as HttpApiError from "effect/http-api/HttpApiError"
 import * as HttpApiGroup from "effect/http-api/HttpApiGroup"
 import * as HttpApiSchema from "effect/http-api/HttpApiSchema"
 import * as Multipart from "effect/http/Multipart"
@@ -13,30 +12,38 @@ export class SystemApi extends HttpApiGroup.make("system", { topLevel: true }).a
 ) {}
 
 export class ProblemApi extends HttpApiGroup.make("problem")
-  .prefix("/problem")
   .add(
-    HttpApiEndpoint.post("upload-problem-hwpx", "/upload-hwpx", {
+    HttpApiEndpoint.post("upload_problem_hwpx", "/upload-hwpx", {
       payload: HttpApiSchema.asMultipart()(Schema.Struct({ file: Multipart.SingleFileSchema })),
       success: Problem.IdSchema,
+      error: Problem.InvalidHwpxError.pipe(HttpApiSchema.status("UnprocessableEntity")),
     }),
-    HttpApiEndpoint.get("generate-solution-text", "/:id/generate-solution-text", {
+    HttpApiEndpoint.get("generate_solution_text", "/:id/generate-solution-text", {
       params: { id: Problem.IdSchema },
       success: Schema.String,
+      error: [
+        Problem.NotFoundError.pipe(HttpApiSchema.status("NotFound")),
+        Problem.SolutionGenerationError.pipe(HttpApiSchema.status("BadGateway")),
+      ],
     }),
     /**
      * Photo of a problem (jpeg/png/webp/gif) -> .hwpx with the text as paragraphs
      * and the math as 한글 equation objects.
-     * 422: unsupported image type · 500: the vision model call failed.
      */
-    HttpApiEndpoint.post("image-to-hwpx", "/image-to-hwpx", {
+    HttpApiEndpoint.post("image_to_hwpx", "/image-to-hwpx", {
       payload: HttpApiSchema.asMultipart({ maxFileSize: "20 MiB" })(
         Schema.Struct({ image: Multipart.SingleFileSchema }),
       ),
       success: Schema.Uint8Array.pipe(
         HttpApiSchema.asUint8Array({ contentType: "application/hwp+zip" }),
       ),
-      error: Schema.Union([HttpApiError.UnprocessableEntity, HttpApiError.InternalServerError]),
+      error: [
+        Problem.UnsupportedImageError.pipe(HttpApiSchema.status("UnprocessableEntity")),
+        Problem.TranscriptionError.pipe(HttpApiSchema.status("BadGateway")),
+      ],
     }),
-  ) {}
+  )
+  // `prefix` only applies to endpoints added before it is called.
+  .prefix("/problem") {}
 
 export class Api extends HttpApi.make("api").add(SystemApi).add(ProblemApi) {}

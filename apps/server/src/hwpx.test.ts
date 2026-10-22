@@ -1,31 +1,55 @@
-import { it } from "@effect/vitest"
+import { inflateRawSync } from "node:zlib"
+
+import * as NodeServices from "@effect/platform-node/NodeServices"
+import { layer } from "@effect/vitest"
 import * as Effect from "effect/Effect"
-import { describe, expect } from "vitest"
+import * as Layer from "effect/Layer"
+import { expect } from "vitest"
 
-import * as Hwpx from "./hwpx.ts"
+import { Hwpx } from "./hwpx.ts"
 
-describe("Hwpx", () => {
-  it.effect("turns $…$ spans into equation objects and the rest into text", () =>
+/** Reads one entry of a zip by walking its central directory. */
+const zipEntry = (zip: Uint8Array, name: string): string => {
+  const buf = Buffer.from(zip)
+  let pos = buf.readUInt32LE(buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06])) + 16)
+  while (buf.readUInt32LE(pos) === 0x02014b50) {
+    const nameLength = buf.readUInt16LE(pos + 28)
+    if (buf.toString("utf8", pos + 46, pos + 46 + nameLength) === name) {
+      const method = buf.readUInt16LE(pos + 10)
+      const size = buf.readUInt32LE(pos + 20)
+      const local = buf.readUInt32LE(pos + 42)
+      const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28)
+      const data = buf.subarray(start, start + size)
+      return (method === 8 ? inflateRawSync(data) : data).toString("utf8")
+    }
+    pos += 46 + nameLength + buf.readUInt16LE(pos + 30) + buf.readUInt16LE(pos + 32)
+  }
+  throw new Error(`${name} not in zip`)
+}
+
+/** Text and equation scripts of a paragraph, in document order. */
+const inline = (paragraph: string): Array<string> =>
+  Array.from(
+    paragraph.matchAll(/<hp:t>([^<]*)<\/hp:t>|<hp:script>([^<]*)<\/hp:script>/g),
+    (m) => m[1] ?? m[2] ?? "",
+  ).filter((s) => s !== "")
+
+layer(Hwpx.layer.pipe(Layer.provide(NodeServices.layer)))("Hwpx", (it) => {
+  it.effect("writes one paragraph per line, equations interleaved at their text offsets", () =>
     Effect.gen(function* () {
-      yield* Effect.void
-      let id = 7
-      const xml = Hwpx.runs("함수 $f LEFT( x RIGHT)`$의 값은? <단>", () => id++)
-      expect(xml).toMatch(/^<hp:t>함수 <\/hp:t><hp:equation id="7" /)
-      expect(xml).toContain("<hp:script>f LEFT( x RIGHT)`</hp:script>")
-      expect(xml).toMatch(/<hp:t>의 값은\? &lt;단&gt;<\/hp:t>$/)
-      expect(Hwpx.runs("", () => id++)).toBe("")
-    }),
-  )
-
-  it.effect("writes an OCF zip with a stored mimetype first", () =>
-    Effect.gen(function* () {
-      yield* Effect.void
-      const bytes = Buffer.from(Hwpx.fromManuscript("1. $1+1$\n\n① $2$\n"))
-      expect(bytes.subarray(0, 4).toString("latin1")).toBe("PK\x03\x04")
-      expect(bytes.readUInt16LE(8)).toBe(0) // stored, not deflated
-      expect(bytes.subarray(30, 38).toString()).toBe("mimetype")
-      expect(bytes.subarray(38, 57).toString()).toBe("application/hwp+zip")
-      expect(bytes.readUInt16LE(bytes.length - 12)).toBe(8) // 8 entries in the central directory
+      const hwpx = yield* Hwpx
+      const bytes = yield* hwpx.fromManuscript(
+        "12. [3점]\n함수 $f LEFT( x RIGHT)`$의 값은? $cdots$ ㉠\n\n① $-2$\n",
+      )
+      expect(zipEntry(bytes, "mimetype")).toBe("application/hwp+zip")
+      const paragraphs = zipEntry(bytes, "Contents/section0.xml").split("<hp:p ").slice(1)
+      expect(paragraphs.map(inline)).toEqual([
+        ["12. [3점]"],
+        ["함수 ", "f LEFT( x RIGHT)`", "의 값은? ", "cdots", " ㉠"],
+        [],
+        ["① ", "-2"],
+      ])
+      expect(paragraphs[0]).toContain("<hp:secPr ") // Hancom needs the section definition
     }),
   )
 })

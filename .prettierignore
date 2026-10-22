@@ -7,5 +7,5 @@ coverage
 .direnv
 .env
 .env.*
-# model prompt: equation examples must stay byte-exact
-apps/server/src/transcribe-prompt.md
+# model prompts: equation examples must stay byte-exact
+apps/server/prompt/

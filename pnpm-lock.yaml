@@ -251,6 +251,9 @@ importers:
       '@personalos/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@rhwp/core':
+        specifier: ^0.8.7
+        version: 0.8.7
       effect:
         specifier: 'catalog:'
         version: 4.0.3
@@ -753,6 +756,9 @@ packages:
     engines: {node: '>= 20.0.0'}
     peerDependencies:
       '@redis/client': ^6.3.0
+
+  '@rhwp/core@0.8.7':
+    resolution: {integrity: sha512-qgNpY9aclCvy9D7cPnpuplu42kUFZCCPhdjAS5HBso4Z4XeHG3uchYdUleQBoas/zEuwfJ7H4/ulepqdL/LXDA==}
 
   '@rolldown/binding-android-arm-eabi@1.2.13':
     resolution: {integrity: sha512-Vu/NICrgdRvUOeaJZIyB2FP63s6fO/4ud5l8dXmxDx9yDyn+mN0y+gsvsVviSli+T361Aqo0h46EuMoobrwawA==}
@@ -1991,6 +1997,8 @@ snapshots:
   '@redis/time-series@6.3.0(@redis/client@6.3.0)':
     dependencies:
       '@redis/client': 6.3.0
+
+  '@rhwp/core@0.8.7': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.13':
     optional: true
