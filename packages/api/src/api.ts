@@ -12,16 +12,22 @@ export class SystemApi extends HttpApiGroup.make("system", { topLevel: true }).a
 ) {}
 
 export class ProblemApi extends HttpApiGroup.make("problem")
-  .prefix("/problem")
   .add(
-    HttpApiEndpoint.post("upload-problem-hwpx", "/upload-hwpx", {
+    HttpApiEndpoint.post("upload_problem_hwpx", "/upload-hwpx", {
       payload: HttpApiSchema.asMultipart()(Schema.Struct({ file: Multipart.SingleFileSchema })),
       success: Problem.IdSchema,
+      error: Problem.InvalidHwpxError.pipe(HttpApiSchema.status("UnprocessableEntity")),
     }),
-    HttpApiEndpoint.get("generate-solution-text", "/:id/generate-solution-text", {
+    HttpApiEndpoint.get("generate_solution_text", "/:id/generate-solution-text", {
       params: { id: Problem.IdSchema },
       success: Schema.String,
+      error: [
+        Problem.NotFoundError.pipe(HttpApiSchema.status("NotFound")),
+        Problem.SolutionGenerationError.pipe(HttpApiSchema.status("BadGateway")),
+      ],
     }),
-  ) {}
+  )
+  // `prefix` only applies to endpoints added before it is called.
+  .prefix("/problem") {}
 
 export class Api extends HttpApi.make("api").add(SystemApi).add(ProblemApi) {}
