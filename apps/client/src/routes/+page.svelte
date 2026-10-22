@@ -19,7 +19,7 @@
     return String(cause)
   }
 
-  // --- 해설 원고 생성 (hwpx → text) ---
+  // --- 해설 원고 생성 (hwpx → manuscript) ---
 
   type Stage = "idle" | "uploading" | "generating" | "done" | "error"
 
@@ -27,7 +27,7 @@
   let dragging = $state(false)
   let fileName = $state("")
   let problemId = $state<Problem.Id | null>(null)
-  let solution = $state("")
+  let solution = $state<Problem.Manuscript | null>(null)
   let errorMessage = $state("")
 
   const solveFile = async (file: File) => {
@@ -37,7 +37,7 @@
       return
     }
     fileName = file.name
-    solution = ""
+    solution = null
     errorMessage = ""
     problemId = null
     try {
@@ -73,34 +73,65 @@
 
   const busy = $derived(stage === "uploading" || stage === "generating")
 
-  // --- 문제 사진 → hwpx ---
+  // --- 문제 사진 → 원고 → hwpx ---
 
   let image = $state<File | null>(null)
-  let converting = $state(false)
+  let transcribing = $state(false)
+  let manuscript = $state("")
+  let warnings = $state<ReadonlyArray<Problem.Warning>>([])
+  let building = $state(false)
   let convertError = $state("")
 
-  const convert = async () => {
+  const transcribe = async () => {
     if (!image) return
-    const file = image
-    converting = true
+    transcribing = true
     convertError = ""
     try {
       const formData = new FormData()
-      formData.append("image", file)
-      const bytes = await api((client) => client.problem.image_to_hwpx({ payload: formData }))
+      formData.append("image", image)
+      const result = await api((client) => client.problem.transcribe_image({ payload: formData }))
+      manuscript = result.text
+      warnings = result.warnings
+    } catch (cause) {
+      convertError = describeError(cause)
+    } finally {
+      transcribing = false
+    }
+  }
+
+  const build = async () => {
+    building = true
+    convertError = ""
+    try {
+      const bytes = await api((client) =>
+        client.problem.manuscript_to_hwpx({ payload: { text: manuscript } }),
+      )
       const url = URL.createObjectURL(new Blob([bytes.slice()], { type: "application/hwp+zip" }))
       const a = document.createElement("a")
       a.href = url
-      a.download = file.name.replace(/\.[^.]+$/, "") + ".hwpx"
+      a.download = (image?.name ?? "manuscript").replace(/\.[^.]+$/, "") + ".hwpx"
       a.click()
       URL.revokeObjectURL(url)
     } catch (cause) {
       convertError = describeError(cause)
     } finally {
-      converting = false
+      building = false
     }
   }
 </script>
+
+{#snippet warningList(items: ReadonlyArray<Problem.Warning>)}
+  {#if items.length > 0}
+    <h4>손봐야 할 것 ({items.length})</h4>
+    <ul class="warnings">
+      {#each items as w (w.line + w.rule + w.text)}
+        <li><code>L{w.line}</code> {w.rule}: <code>{w.text}</code></li>
+      {/each}
+    </ul>
+  {:else}
+    <p class="meta">형식 검사 통과</p>
+  {/if}
+{/snippet}
 
 <main>
   <h1>PersonalOS</h1>
@@ -153,23 +184,37 @@
       <p class="error">{errorMessage}</p>
     {/if}
 
-    {#if stage === "done"}
+    {#if stage === "done" && solution}
       <h3>해설 원고</h3>
-      <pre>{solution}</pre>
+      <pre>{solution.text}</pre>
+      {@render warningList(solution.warnings)}
     {/if}
   </section>
 
   <section>
     <h2>문제 사진 → hwpx</h2>
-    <p>문제 사진을 올리면 본문은 글, 수식은 한글 수식 개체로 옮긴 hwpx를 내려받습니다.</p>
+    <p>
+      문제 사진을 원고(글 + <code>$수식$</code>)로 옮긴 뒤 형식 검사 결과를 보고 고쳐서 hwpx로
+      내려받습니다.
+    </p>
     <input
       type="file"
       accept="image/jpeg,image/png,image/webp,image/gif"
       onchange={(e) => (image = e.currentTarget.files?.[0] ?? null)}
     />
-    <button onclick={convert} disabled={!image || converting}>
-      {converting ? "변환 중… (수십 초 걸릴 수 있음)" : "hwpx로 변환"}
+    <button onclick={transcribe} disabled={!image || transcribing}>
+      {transcribing ? "전사 중… (수십 초 걸릴 수 있음)" : "원고로 전사"}
     </button>
+
+    {#if manuscript}
+      <h3>원고</h3>
+      <textarea bind:value={manuscript} rows="16" spellcheck="false"></textarea>
+      {@render warningList(warnings)}
+      <button onclick={build} disabled={building}>
+        {building ? "변환 중…" : "hwpx로 변환"}
+      </button>
+    {/if}
+
     {#if convertError}
       <p class="error">{convertError}</p>
     {/if}
@@ -224,11 +269,22 @@
     color: var(--color-down);
   }
 
-  pre {
+  pre,
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font: 0.875rem/1.5 ui-monospace, monospace;
     white-space: pre-wrap;
     word-break: break-word;
     border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
     border-radius: 0.5rem;
     padding: 1rem;
+    background: transparent;
+    color: inherit;
+  }
+
+  .warnings {
+    font-size: 0.875rem;
+    padding-left: 1.25rem;
   }
 </style>

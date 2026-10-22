@@ -39,7 +39,7 @@ layer(Hwpx.layer.pipe(Layer.provide(NodeServices.layer)))("Hwpx", (it) => {
     Effect.gen(function* () {
       const hwpx = yield* Hwpx
       const bytes = yield* hwpx.fromManuscript(
-        "12. [3점]\n함수 $f LEFT( x RIGHT)`$의 값은? $cdots$ ㉠\n\n① $-2$\n",
+        "12. [3점]\n함수 $f LEFT( x RIGHT)`$의 값은? $cdots$ ㉠\n\n① $-2$",
       )
       expect(zipEntry(bytes, "mimetype")).toBe("application/hwp+zip")
       const paragraphs = zipEntry(bytes, "Contents/section0.xml").split("<hp:p ").slice(1)

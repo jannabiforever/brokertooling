@@ -49,3 +49,30 @@ export class TranscriptionError extends Schema.TaggedError<TranscriptionError>()
   "TranscriptionError",
   { message: Schema.String },
 ) {}
+
+/**
+ * One lint finding on a manuscript line; rule names match the skill's check.py.
+ */
+export const WarningSchema = Schema.Struct({
+  line: Schema.Int,
+  rule: Schema.String,
+  text: Schema.String,
+})
+export type Warning = (typeof WarningSchema)["Type"]
+
+/**
+ * Manuscript text (one line = one paragraph, `$…$` = equation) after the
+ * format pass, with the lint warnings the author should look at.
+ */
+export const ManuscriptSchema = Schema.Struct({
+  text: Schema.String,
+  warnings: Schema.Array(WarningSchema),
+})
+export type Manuscript = (typeof ManuscriptSchema)["Type"]
+
+/**
+ * The manuscript could not be turned into a .hwpx document.
+ */
+export class HwpxBuildError extends Schema.TaggedError<HwpxBuildError>()("HwpxBuildError", {
+  message: Schema.String,
+}) {}

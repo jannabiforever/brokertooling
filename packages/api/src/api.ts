@@ -18,29 +18,36 @@ export class ProblemApi extends HttpApiGroup.make("problem")
       success: Problem.IdSchema,
       error: Problem.InvalidHwpxError.pipe(HttpApiSchema.status("UnprocessableEntity")),
     }),
+    /** 해설 원고 for a stored problem, formatted and linted. */
     HttpApiEndpoint.get("generate_solution_text", "/:id/generate-solution-text", {
       params: { id: Problem.IdSchema },
-      success: Schema.String,
+      success: Problem.ManuscriptSchema,
       error: [
         Problem.NotFoundError.pipe(HttpApiSchema.status("NotFound")),
         Problem.SolutionGenerationError.pipe(HttpApiSchema.status("BadGateway")),
       ],
     }),
     /**
-     * Photo of a problem (jpeg/png/webp/gif) -> .hwpx with the text as paragraphs
-     * and the math as 한글 equation objects.
+     * Photo of a problem (jpeg/png/webp/gif) -> manuscript: text as lines, math
+     * as `$...$` in 한글 수식 syntax, formatted and linted.
      */
-    HttpApiEndpoint.post("image_to_hwpx", "/image-to-hwpx", {
+    HttpApiEndpoint.post("transcribe_image", "/transcribe-image", {
       payload: HttpApiSchema.asMultipart({ maxFileSize: "20 MiB" })(
         Schema.Struct({ image: Multipart.SingleFileSchema }),
       ),
-      success: Schema.Uint8Array.pipe(
-        HttpApiSchema.asUint8Array({ contentType: "application/hwp+zip" }),
-      ),
+      success: Problem.ManuscriptSchema,
       error: [
         Problem.UnsupportedImageError.pipe(HttpApiSchema.status("UnprocessableEntity")),
         Problem.TranscriptionError.pipe(HttpApiSchema.status("BadGateway")),
       ],
+    }),
+    /** Manuscript text -> .hwpx with one paragraph per line and 한글 equation objects. */
+    HttpApiEndpoint.post("manuscript_to_hwpx", "/manuscript-to-hwpx", {
+      payload: Schema.Struct({ text: Schema.String }),
+      success: Schema.Uint8Array.pipe(
+        HttpApiSchema.asUint8Array({ contentType: "application/hwp+zip" }),
+      ),
+      error: Problem.HwpxBuildError.pipe(HttpApiSchema.status("InternalServerError")),
     }),
   )
   // `prefix` only applies to endpoints added before it is called.

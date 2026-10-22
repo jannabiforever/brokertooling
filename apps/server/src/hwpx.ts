@@ -40,10 +40,7 @@ const buildDocument = (manuscript: string): Uint8Array => {
     // Hancom's bundled blank template: carries the section/column definitions
     // that `createEmpty` leaves out and Hancom insists on.
     doc.createBlankDocument()
-    const lines = manuscript
-      .replace(/^```[^\n]*\n|\n```\s*$/g, "") // models sometimes fence the output
-      .trimEnd()
-      .split(/\r?\n/)
+    const lines = manuscript.split("\n")
     lines.forEach((line, para) => {
       if (para > 0) check(doc.insertParagraph(0, para))
       // Equations anchor to a text offset, and text inserted at that offset lands
@@ -69,7 +66,7 @@ const fromManuscript = (manuscript: string) =>
   Effect.try({
     try: () => buildDocument(manuscript),
     catch: (cause) =>
-      new Api.Problem.TranscriptionError({
+      new Api.Problem.HwpxBuildError({
         message: `hwpx 생성에 실패했습니다: ${String(cause)}`,
       }),
   })
@@ -90,7 +87,7 @@ export class Hwpx extends Context.Service<
     /** Builds a .hwpx from a manuscript: one line = one paragraph, `$...$` = equation. */
     readonly fromManuscript: (
       manuscript: string,
-    ) => Effect.Effect<Uint8Array, Api.Problem.TranscriptionError>
+    ) => Effect.Effect<Uint8Array, Api.Problem.HwpxBuildError>
   }
 >()("@personalos/server/hwpx") {
   static readonly layer = Layer.effect(

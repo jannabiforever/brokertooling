@@ -1,0 +1,39 @@
+일반성을 잃지 않고,
+점 $rm A`$의 $x`$좌표 $alpha `$가 점 $rm B`$의 $x`$좌표 $beta `$보다 작다고 하자.
+
+이때, $alpha `$, $beta `$는 이차방정식
+
+    $x ^{2} + LEFT( -x+2 RIGHT) ^{2} =t$
+
+의 서로 다른 두 실근이다. 여기서 근과 계수의 관계를 이용하면
+
+    $beta - alpha = {sqrt {4 ^{2} -4 times 2 times LEFT( 4-t RIGHT)}} over {2} = sqrt {2t-4}$
+
+임을 쉽게 얻는다.
+
+
+한편, $bar {rm AB} it `= sqrt {2} LEFT( beta - alpha RIGHT) =2 sqrt {t-2} `$, $bar {rm AO} `= bar {rm BO} it `= sqrt {t} `$이므로
+삼각형 $rm ABO`$에서 코사인법칙을 사용해
+
+    $4t-8=2t times LEFT( 1- cos`f LEFT( t RIGHT) RIGHT)$   $RARROW$   $cos`f LEFT( t RIGHT) = {4} over {t} -1$ $cdots$ ㉠
+
+임을 얻을 수 있다.
+
+또한, ㉠[반띄쓰]의 양변을 $t`$에 대해 미분하여 정리하면
+
+    $-f`' LEFT( t RIGHT) times sin`f LEFT( t RIGHT) =- {4} over {t ^{2}}$   $RARROW$   $f`' LEFT( t RIGHT) = {4} over {t ^{2} times sin`f LEFT( t RIGHT)}$ $cdots$ ㉡
+
+을 얻는다.
+
+㉠[반띄쓰]에 $t=20`$을 대입해 정리하면
+
+    $cos`f LEFT( 20 RIGHT) =- {4} over {5}$   $RARROW$   $sin`f LEFT( 20 RIGHT) = {3} over {5}$
+
+임을 얻으므로,
+㉡[반띄쓰]에 $t=20`$을 대입해 정리하면 구하는 $f`' LEFT( 20 RIGHT)`$의 값은
+
+    $f`' LEFT( 20 RIGHT) = {4} over {400 times {{3} over {5}}} = {1} over {60}$
+
+이다.
+
+$therefore `` {1} over {60}$

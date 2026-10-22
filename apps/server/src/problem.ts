@@ -12,6 +12,7 @@ import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
 
 import { Hwpx } from "./hwpx.ts"
+import * as Manuscript from "./manuscript.ts"
 
 /**
  * In-memory problem store: upload extracts the problem text once and keeps it
@@ -58,6 +59,12 @@ const Model = AnthropicLanguageModel.layer({ model: "claude-fable-5" })
 // what the Anthropic vision API accepts; HEIC straight from an iPhone is not among them
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
 
+/** The lint/format stage every model-written manuscript goes through. */
+const finish = (text: string): Api.Problem.Manuscript => {
+  const formatted = Manuscript.format(text)
+  return { text: formatted, warnings: Manuscript.lint(formatted) }
+}
+
 // Services are resolved once when the group layer is built (construction-time
 // requirements), so the store and WASM parser live for the whole process.
 export const Live = HttpApiBuilder.group(Api.Api, "problem", (handlers) =>
@@ -102,9 +109,9 @@ export const Live = HttpApiBuilder.group(Api.Api, "problem", (handlers) =>
               (error) => new Api.Problem.SolutionGenerationError({ message: error.message }),
             ),
           )
-        return response.text
+        return finish(response.text)
       }),
-      image_to_hwpx: Effect.fnUntraced(function* ({
+      transcribe_image: Effect.fnUntraced(function* ({
         payload: { image },
       }: {
         payload: { image: Multipart.PersistedFile }
@@ -133,8 +140,10 @@ export const Live = HttpApiBuilder.group(Api.Api, "problem", (handlers) =>
               (error) => new Api.Problem.TranscriptionError({ message: error.message }),
             ),
           )
-        return yield* hwpx.fromManuscript(response.text)
+        return finish(response.text)
       }),
+      manuscript_to_hwpx: ({ payload }: { payload: { text: string } }) =>
+        hwpx.fromManuscript(Manuscript.format(payload.text)),
     })
   }),
 ).pipe(Layer.provide([Hwpx.layer, Store.layer, Model]))
